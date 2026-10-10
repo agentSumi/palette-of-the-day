@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palette-of-the-Day · sound became color</title>
+<style>
+  /* SAV9 tokens */
+  :root {
+    --cream: #f4ecd8;
+    --cream-deep: #ebe0c4;
+    --ink: #2a2418;
+    --ink-soft: #5c5240;
+    --gold: #b8860b;
+    --gold-glow: #d4a836;
+    --rust: #8b3a1c;
+    --teal: #2d5a5a;
+    --shadow: rgba(42, 36, 24, 0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1rem;
+    overflow-x: hidden;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--ink-soft);
+    letter-spacing: 0.01em;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    opacity: 0.6;
+    margin-top: 0.2rem;
+    font-style: italic;
+  }
+
+  /* Canvas — top 60% */
+  .canvas-wrap {
+    flex: 0 0 60vh;
+    max-height: 60vh;
+    background: var(--cream);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 40px var(--shadow);
+  }
+
+  canvas#palette {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .canvas-label {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    opacity: 0.5;
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  .time-display {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    opacity: 0.5;
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+  }
+
+  button {
+    background: transparent;
+    border: 1px solid var(--ink-soft);
+    color: var(--ink-soft);
+    padding: 0.5rem 1rem;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-style: italic;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.02em;
+  }
+
+  button:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  button.primary {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  button.primary:hover {
+    background: var(--gold);
+    color: var(--cream);
+  }
+
+  /* Mood-board strip — bottom 40% */
+  .strip-wrap {
+    flex: 1;
+    min-height: 25vh;
+    background: linear-gradient(180deg, var(--cream) 0%, var(--cream-deep) 100%);
+    border-radius: 2px;
+    padding: 1rem;
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.6) inset;
+  }
+
+  .strip-label {
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    opacity: 0.55;
+    font-style: italic;
+    margin-bottom: 0.6rem;
+    text-align: center;
+  }
+
+  .strip {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    height: calc(100% - 1.5rem);
+  }
+
+  .day {
+    border-radius: 2px;
+    border: 1px solid var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255,255,255,0.3);
+    transition: transform 0.2s ease;
+    position: relative;
+  }
+
+  .day.today {
+    border: 1.5px solid var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow);
+  }
+
+  .day-label {
+    font-size: 0.65rem;
+    color: var(--ink-soft);
+    opacity: 0.6;
+    font-style: italic;
+    text-align: center;
+    padding: 4px 0;
+    background: rgba(244, 236, 216, 0.7);
+  }
+
+  .day-swatches {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .swatch {
+    flex: 1;
+  }
+
+  /* Overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(244, 236, 216, 0.96);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.6s ease;
+  }
+
+  .overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .overlay-content {
+    max-width: 380px;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .overlay-content h2 {
+    font-size: 1.2rem;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ink-soft);
+    margin-bottom: 0.5rem;
+  }
+
+  .overlay-content p {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+  }
+
+  .status {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    opacity: 0.55;
+    font-style: italic;
+    margin-top: 0.5rem;
+    min-height: 1em;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* Mobile */
+  @media (max-width: 480px) {
+    h1 { font-size: 1.15rem; }
+    .strip { gap: 0.3rem; }
+    .day-label { font-size: 0.55rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-content">
+    <h2>Palette-of-the-Day</h2>
+    <p>The room will become color. Sound drifts the palette across the day. At day's end, a palette is saved.</p>
+    <button class="primary" id="startBtn">begin</button>
+  </div>
+</div>
+
+<header>
+  <h1>Palette-of-the-Day</h1>
+  <div class="subtitle">sound became color</div>
+</header>
+
+<div class="canvas-wrap">
+  <canvas id="palette"></canvas>
+  <div class="canvas-label" id="bandLabel">listening…</div>
+  <div class="time-display" id="timeDisplay">—</div>
+</div>
+
+<div class="controls">
+  <button id="rerollBtn">re-roll today</button>
+  <button id="exportBtn" class="primary">export CSS</button>
+</div>
+
+<div class="strip-wrap">
+  <div class="strip-label">the week as color</div>
+  <div class="strip" id="strip"></div>
+</div>
+
+<div class="status" id="status"></div>
+
+<script>
+(() => {
+  // === Config ===
+  const params = new URLSearchParams(location.search);
+  const DAY_END_HOUR = parseInt(params.get('dayend')) || 22;
+  const DAY_END_TEST_SEC = params.get('day') ? parseInt(params.get('day')) : null;
+
+  // === State ===
+  let audioCtx = null;
+  let analyser = null;
+  let micStream = null;
+  let micEnabled = false;
+
+  // 5 frequency bands: sub-bass, bass, mid, high, air
+  const BANDS = [
+    { name: 'sub-bass', range: [20, 60],   weight: 1.0 },
+    { name: 'bass',     range: [60, 250],  weight: 1.0 },
+    { name: 'mid',      range: [250, 2000], weight: 1.0 },
+    { name: 'high',     range: [2000, 6000], weight: 1.0 },
+    { name: 'air',      range: [6000, 20000], weight: 1.0 }
+  ];
+
+  // 5 circles — position, size, band
+  const circles = BANDS.map((b, i) => ({
+    x: 0.3 + Math.random() * 0.4,
+    y: 0.3 + Math.random() * 0.4,
+    vx: (Math.random() - 0.5) * 0.0008,
+    vy: (Math.random() - 0.5) * 0.0008,
+    size: 80 + Math.random() * 60,
+    band: i,
+    bandEnergy: 0,
+    hue: 0,
+    sat: 0,
+    light: 0
+  }));
+
+  let currentPalette = null; // {hue, sat, light, swatches: []}
+  let lastSavedDate = null;
+  let rafId = null;
+  let frameCount = 0;
+  let fpsStart = performance.now();
+
+  // === DOM ===
+  const $ = (id) => document.getElementById(id);
+  const overlay = $('overlay');
+  const startBtn = $('startBtn');
+  const rerollBtn = $('rerollBtn');
+  const exportBtn = $('exportBtn');
+  const canvas = $('palette');
+  const ctx = canvas.getContext('2d');
+  const strip = $('strip');
+  const statusEl = $('status');
+  const timeEl = $('timeDisplay');
+  const bandLabel = $('bandLabel');
+
+  // === Audio init ===
+  async function initAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = audioCtx.createMediaStreamSource(micStream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      micEnabled = true;
+      statusEl.textContent = 'listening to the room';
+    } catch (e) {
+      micEnabled = false;
+      statusEl.textContent = 'mic access denied — using time-only palette';
+    }
+    overlay.classList.add('hidden');
+    loadStrip();
+    startLoop();
+  }
+
+  // === 5-band decomposition ===
+  function getBandEnergies() {
+    if (!analyser) {
+      // Time-only fallback: deterministic palette from time of day
+      const t = Date.now() / 1000;
+      return BANDS.map((b, i) => 0.3 + 0.2 * Math.sin(t * 0.1 + i * 1.3));
+    }
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(buf);
+    const sampleRate = audioCtx.sampleRate;
+    const binHz = sampleRate / 2 / analyser.frequencyBinCount;
+
+    return BANDS.map(b => {
+      const lo = Math.floor(b.range[0] / binHz);
+      const hi = Math.floor(b.range[1] / binHz);
+      let sum = 0;
+      for (let i = lo; i <= hi && i < buf.length; i++) sum += buf[i];
+      return (sum / (hi - lo + 1)) / 255; // 0..1
+    });
+  }
+
+  // === HSL mapping: each band maps to one HSL channel ===
+  function bandToHSL(energies) {
+    // hue: weighted avg of mid+high (most expressive for color)
+    // saturation: dominated by sub-bass+bass (low-end energy = richness)
+    // lightness: dominated by air+high (high-end = brightness)
+    const hue = ((energies[2] * 0.4 + energies[3] * 0.4 + energies[4] * 0.2) * 360) % 360;
+    const sat = 35 + (energies[0] * 0.5 + energies[1] * 0.5) * 50; // 35-85%
+    const light = 45 + (energies[3] * 0.3 + energies[4] * 0.7) * 25; // 45-70%
+    return { hue, sat, light };
+  }
+
+  // === Render loop ===
+  function startLoop() {
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = canvas.clientWidth * dpr;
+      canvas.height = canvas.clientHeight * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const loop = () => {
+      const energies = getBandEnergies();
+      const hsl = bandToHSL(energies);
+
+      // Update circles
+      const W = canvas.clientWidth;
+      const H = canvas.clientHeight;
+
+      circles.forEach((c, i) => {
+        c.x += c.vx + (energies[i] - 0.3) * 0.002;
+        c.y += c.vy + (Math.sin(frameCount * 0.01 + i) * 0.001);
+        // Soft bounds
+        if (c.x < 0.1 || c.x > 0.9) c.vx *= -1;
+        if (c.y < 0.1 || c.y > 0.9) c.vy *= -1;
+        c.x = Math.max(0.1, Math.min(0.9, c.x));
+        c.y = Math.max(0.1, Math.min(0.9, c.y));
+        c.bandEnergy = energies[i];
+        c.hue = hsl.hue + (i - 2) * 30; // spread hues around dominant
+        c.sat = hsl.sat;
+        c.light = hsl.light;
+      });
+
+      // Draw
+      ctx.fillStyle = 'rgba(244, 236, 216, 1)';
+      ctx.fillRect(0, 0, W, H);
+
+      circles.forEach(c => {
+        const grad = ctx.createRadialGradient(
+          c.x * W, c.y * H, 0,
+          c.x * W, c.y * H, c.size
+        );
+        const col = `hsla(${c.hue}, ${c.sat}%, ${c.light}%, 0.55)`;
+        grad.addColorStop(0, col);
+        grad.addColorStop(1, `hsla(${c.hue}, ${c.sat}%, ${c.light}%, 0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(c.x * W, c.y * H, c.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // FPS check (every 60 frames)
+      frameCount++;
+      if (frameCount % 60 === 0) {
+        const fps = 60000 / (performance.now() - fpsStart);
+        window.__paletteFPS = fps;
+        fpsStart = performance.now();
+      }
+
+      // Band label
+      const dominantIdx = energies.indexOf(Math.max(...energies));
+      bandLabel.textContent = BANDS[dominantIdx].name;
+
+      // Current palette
+      currentPalette = {
+        hue: hsl.hue,
+        sat: hsl.sat,
+        light: hsl.light,
+        swatches: circles.map(c => `hsl(${c.hue.toFixed(0)}, ${c.sat.toFixed(0)}%, ${c.light.toFixed(0)}%)`)
+      };
+
+      // Check day-end
+      const now = new Date();
+      if (shouldSaveToday(now)) {
+        saveToday(currentPalette);
+      }
+
+      timeEl.textContent = formatTime(now);
+
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function shouldSaveToday(now) {
+    const dateKey = now.toDateString();
+    if (lastSavedDate === dateKey) return false;
+    if (DAY_END_TEST_SEC !== null) {
+      // Test mode: save N seconds after start
+      const start = window.__paletteStartTime || (window.__paletteStartTime = Date.now());
+      return (Date.now() - start) >= DAY_END_TEST_SEC * 1000;
+    }
+    return now.getHours() === DAY_END_HOUR && now.getMinutes() === 0;
+  }
+
+  function formatTime(d) {
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  // === Save today's palette to localStorage ===
+  function saveToday(palette) {
+    const dateKey = new Date().toDateString();
+    if (lastSavedDate === dateKey) return;
+    lastSavedDate = dateKey;
+
+    const stored = JSON.parse(localStorage.getItem('palette-of-the-day') || '{}');
+    stored[dateKey] = palette;
+    // Keep only last 7 days
+    const keys = Object.keys(stored).sort((a, b) => new Date(b) - new Date(a));
+    const trimmed = {};
+    keys.slice(0, 7).forEach(k => trimmed[k] = stored[k]);
+    localStorage.setItem('palette-of-the-day', JSON.stringify(trimmed));
+    statusEl.textContent = 'palette saved for today';
+    loadStrip();
+  }
+
+  // === Render the 7-day strip ===
+  function loadStrip() {
+    const stored = JSON.parse(localStorage.getItem('palette-of-the-day') || '{}');
+    const today = new Date();
+    const todayKey = today.toDateString();
+
+    strip.innerHTML = '';
+    // Last 7 days, oldest left, today right
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toDateString();
+      const palette = stored[key];
+      const day = document.createElement('div');
+      day.className = 'day' + (key === todayKey ? ' today' : '');
+      const label = document.createElement('div');
+      label.className = 'day-label';
+      label.textContent = i === 0 ? 'today' : d.toLocaleDateString('en', { weekday: 'short' }).toLowerCase();
+      const swatches = document.createElement('div');
+      swatches.className = 'day-swatches';
+      if (palette && palette.swatches) {
+        palette.swatches.forEach(s => {
+          const sw = document.createElement('div');
+          sw.className = 'swatch';
+          sw.style.background = s;
+          swatches.appendChild(sw);
+        });
+      } else {
+        swatches.style.opacity = '0.2';
+      }
+      day.appendChild(label);
+      day.appendChild(swatches);
+      strip.appendChild(day);
+    }
+  }
+
+  // === Re-roll today's palette from current state ===
+  rerollBtn.addEventListener('click', () => {
+    if (!currentPalette) return;
+    saveToday(currentPalette);
+    statusEl.textContent = 're-rolled from now';
+  });
+
+  // === Export today's palette as CSS custom properties ===
+  exportBtn.addEventListener('click', async () => {
+    if (!currentPalette) {
+      statusEl.textContent = 'no palette yet — wait a moment';
+      return;
+    }
+    const lines = currentPalette.swatches.map((s, i) => {
+      // Extract hsl values
+      const m = s.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+      if (!m) return `--palette-${i+1}: ${s};`;
+      return `--palette-${i+1}: hsl(${m[1]}, ${m[2]}%, ${m[3]}%);`;
+    });
+    const css = ':root {\n  ' + lines.join('\n  ') + '\n}';
+    try {
+      await navigator.clipboard.writeText(css);
+      statusEl.textContent = 'CSS copied to clipboard';
+    } catch (e) {
+      // Fallback: show in a textarea
+      const ta = document.createElement('textarea');
+      ta.value = css;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      statusEl.textContent = 'CSS copied (fallback)';
+    }
+  });
+
+  // === Wire start ===
+  startBtn.addEventListener('click', initAudio);
+
+  // === Expose for smoke-test ===
+  window.__palette = {
+    getState: () => ({ micEnabled, audioState: audioCtx?.state, fps: window.__paletteFPS }),
+    getBandEnergies,
+    getCurrentPalette: () => currentPalette,
+    saveNow: (palette) => saveToday(palette || currentPalette),
+    exportCSS: () => {
+      if (!currentPalette) return '';
+      return ':root {\n  ' + currentPalette.swatches.map((s, i) => `  --palette-${i+1}: ${s};`).join('\n') + '\n}';
+    },
+    canvas
+  };
+})();
+</script>
+</body>
+</html>
